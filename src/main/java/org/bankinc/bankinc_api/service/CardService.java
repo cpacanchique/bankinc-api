@@ -23,13 +23,17 @@ public class CardService {
 
 
     // Generar número de tarjeta
-    public Card generateCard(String productId) {
-
+    public Card generateCard(String productId, String holderName) {
+        // Validar productId
+        if (!productId.matches("\\d{6}")) {
+            throw new RuntimeException("ProductId must be exactly 6 digits");
+        }
         String cardNumber = generateCardNumber(productId);
 
         Card card = new Card();
         card.setProductId(productId);
         card.setCardNumber(cardNumber);
+        card.setHolderName(holderName);
         card.setExpirationDate(LocalDate.now().plusYears(3));
         card.setBalance(0);
         card.setActive(false);
@@ -54,6 +58,17 @@ public class CardService {
     public Card enrollCard(String cardNumber) {
         Card card = cardRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+        if (card.isActive()) {
+            throw new RuntimeException("Card is already active");
+        }
+
+        if (card.isBlocked()) {
+            throw new RuntimeException("Blocked card cannot be activated");
+        }
+
+        if (card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Card is expired");
+        }
 
         card.setActive(true);
         return cardRepository.save(card);
@@ -62,7 +77,17 @@ public class CardService {
     public Card blockCard(String cardNumber) {
         Card card = cardRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+        if (card.isBlocked()) {
+            throw new RuntimeException("Card is already blocked");
+        }
 
+        if (!card.isActive()) {
+            throw new RuntimeException("Inactive card cannot be blocked");
+        }
+
+        if (card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Expired card cannot be blocked");
+        }
         card.setBlocked(true);
         return cardRepository.save(card);
     }
@@ -70,6 +95,21 @@ public class CardService {
     public Card rechargeBalance(String cardNumber, double amount) {
         Card card = cardRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+        if (amount <= 0) {
+            throw new RuntimeException("Recharge amount must be greater than zero");
+        }
+
+        if (!card.isActive()) {
+            throw new RuntimeException("Inactive card cannot be recharged");
+        }
+
+        if (card.isBlocked()) {
+            throw new RuntimeException("Blocked card cannot be recharged");
+        }
+
+        if (card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Expired card cannot be recharged");
+        }
 
         // balance puede ser null, así que usamos Double
         Double currentBalance = card.getBalance();
@@ -85,6 +125,21 @@ public class CardService {
     public Double getBalance(String cardNumber) {
         Card card = cardRepository.findByCardNumber(cardNumber)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+        if (cardNumber == null || cardNumber.trim().isEmpty()) {
+            throw new RuntimeException("Card number is required");
+        }
+        if (!card.isActive()) {
+            throw new RuntimeException("Inactive card cannot check balance");
+        }
+
+        if (card.isBlocked()) {
+            throw new RuntimeException("Blocked card cannot check balance");
+        }
+
+        if (card.getExpirationDate() != null &&
+                card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Expired card cannot check balance");
+        }
 
         // Si balance es null, devolvemos 0.0
         Double currentBalance = card.getBalance();
@@ -105,6 +160,16 @@ public class CardService {
         // Verificar si la tarjeta está bloqueada
         if (card.isBlocked()) {
             throw new RuntimeException("Cannot perform purchase: card is blocked");
+        }
+        if (!card.isActive()) {
+            throw new RuntimeException("Inactive card cannot perform purchases");
+        }
+        if (price <= 0) {
+            throw new RuntimeException("Price must be greater than zero");
+        }
+        if (card.getExpirationDate() != null &&
+                card.getExpirationDate().isBefore(LocalDate.now())) {
+            throw new RuntimeException("Expired card cannot perform purchases");
         }
 
         // Verificar saldo suficiente

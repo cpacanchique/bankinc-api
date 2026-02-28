@@ -20,8 +20,11 @@ public class CardController {
     }
 
     @GetMapping("/{productId}/number")
-    public Card generateCard(@PathVariable String productId) {
-        return cardService.generateCard(productId);
+    public Card generateCard(
+            @PathVariable String productId,
+            @RequestParam String holderName) {
+
+        return cardService.generateCard(productId, holderName);
     }
 
     /**
