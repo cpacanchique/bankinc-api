@@ -1,1 +1,1 @@
-web: ./gradlew build && java -jar build/libs/bankinc-api.jar
+web: ./gradlew build -x test && java -Xmx256m -jar build/libs/bankinc-api.jar
